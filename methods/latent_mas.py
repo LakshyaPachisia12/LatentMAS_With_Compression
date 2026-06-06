@@ -166,9 +166,12 @@ class LatentMASMethod:
                     )
             else:
 
-                # Decompress before judger's text generation
+                # Decompress before judger's text generation; time it for TTFT proxy
+                from compression import metrics as _metrics
+                _metrics.start_judger_setup()
                 if self.kv_pipeline is not None:
                     past_kv = self.kv_pipeline.decompress(past_kv)
+                _metrics.end_judger_setup()
 
                 past_for_decoding = past_kv if self.latent_steps > 0 else None
 

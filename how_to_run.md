@@ -166,7 +166,49 @@ CUDA_VISIBLE_DEVICES=0,1 python run.py \
 
 ---
 
-## Benchmarking both modes side by side
+## Benchmarking all modes in one run (`benchmark_all.py`)
+
+Runs every configuration sequentially on the same loaded model and prints a single comparison table at the end. Also saves a JSON file for further analysis.
+
+```bash
+# Quick run — 20 samples, all 5 configs
+python benchmark_all.py \
+  --model_name Qwen/Qwen3-8B \
+  --task gsm8k \
+  --n_samples 20
+
+# Full run with calibration profile (recommended for adaptive mode)
+python benchmark_all.py \
+  --model_name Qwen/Qwen3-8B \
+  --task gsm8k \
+  --n_samples 100 \
+  --calibration_file calibration_artifacts/layer_profile_Qwen3-8B.json \
+  --output benchmark_results.json
+
+# Skip slow configs (e.g. just compare the three latent_mas variants)
+python benchmark_all.py \
+  --model_name Qwen/Qwen3-8B \
+  --task gsm8k \
+  --n_samples 50 \
+  --skip baseline --skip text_mas \
+  --output results_latent_only.json
+```
+
+Table columns: Config | Accuracy | Time/sample (s) | KV before (MB) | KV after (MB) | Ratio | Judger setup (ms) | Peak GPU (MB)
+
+### Available `--skip` keys
+
+| Key            | Skips                           |
+| -------------- | ------------------------------- |
+| `baseline`     | Baseline single agent           |
+| `text_mas`     | TextMAS                         |
+| `latent_none`  | LatentMAS without compression   |
+| `uniform_int8` | LatentMAS + uniform INT8        |
+| `adaptive`     | LatentMAS + adaptive LAKV       |
+
+---
+
+## Benchmarking both modes side by side (manual)
 
 Run these back to back and compare the `accuracy` and `time_per_sample_sec` fields in the JSON output.
 

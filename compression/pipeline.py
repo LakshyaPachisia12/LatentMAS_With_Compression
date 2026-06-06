@@ -27,6 +27,7 @@ import torch
 
 from .quantizer import QuantizedLayer, quantize_kv_cache, dequantize_kv_cache
 from .layer_selector import evict_tier3, reconstruct_tier3
+from . import metrics as _metrics
 
 
 class KVCompressionPipeline:
@@ -86,6 +87,9 @@ class KVCompressionPipeline:
         # Normalise to plain tuple of (k, v) pairs
         past_kv = _to_legacy_tuple(past_kv)
 
+        # Record raw size before compression
+        _metrics.record_kv_before(self.log_size(past_kv))
+
         # Step 1: drop Tier 3 layers
         selected = evict_tier3(past_kv, self.layer_profile)
 
@@ -94,6 +98,15 @@ class KVCompressionPipeline:
             selected,
             self._surviving_profile(past_kv),
         )
+
+        # Record compressed size
+        after_mb = sum(
+            e.k_quant.element_size() * e.k_quant.nelement() +
+            e.v_quant.element_size() * e.v_quant.nelement()
+            for e in compressed
+        ) / (1024 ** 2)
+        _metrics.record_kv_after(after_mb)
+
         return compressed
 
     def decompress(self, compressed: Optional[Union[Tuple, List[QuantizedLayer]]]) -> Optional[Tuple]:
