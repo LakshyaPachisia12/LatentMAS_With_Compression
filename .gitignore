@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Model weights & checkpoints (these are huge)
+*.bin
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.gguf
+
+# HuggingFace cache (if cloned locally into the repo)
+models/
+hf_cache/
+
+# Calibration artifacts (JSON profiles are fine to commit; raw tensors are not)
+calibration_artifacts/*.pt
+calibration_artifacts/*.bin
+
+# Results / output logs
+results_*.json
+*.log
+logs/
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code session files
+.claude/
