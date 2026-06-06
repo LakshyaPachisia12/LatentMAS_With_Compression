@@ -35,13 +35,16 @@ class LatentMASMethod:
         self.generate_bs = max(1, generate_bs)
         self.agents = default_agents()
         self.method_name = 'latent_mas'
-        self.vllm_device = args.device 
+        self.vllm_device = args.device
         self.HF_device = args.device2
         self.latent_only = bool(getattr(args, "latent_only", False)) if args else False
         self.sequential_info_only = bool(getattr(args, "sequential_info_only", False)) if args else False
 
         if self.latent_only:
             self.sequential_info_only = True
+
+        # LAKV: attach compression pipeline (None when compression_mode == "none")
+        self.kv_pipeline = getattr(args, "kv_pipeline", None) if args else None
 
         self.sampling_params = SamplingParams(
             temperature=temperature,
@@ -107,11 +110,15 @@ class LatentMASMethod:
             )
 
             if agent.role != "judger":
+                # Decompress first so _past_length works on a plain tuple
+                if self.kv_pipeline is not None:
+                    past_kv = self.kv_pipeline.decompress(past_kv)
+
                 prev_past_len = _past_length(past_kv)
 
                 if self.args.think:
                         wrapped_prompts = [f"{prompt}<think>" for prompt in prompts]
-                else: 
+                else:
                     wrapped_prompts = prompts
 
                 wrapped_encoded = self.model.tokenizer(
@@ -139,6 +146,10 @@ class LatentMASMethod:
                     tokens_to_keep = self.latent_steps if self.latent_only else tokens_added
                     past_kv = self._truncate_past(past_kv, tokens_to_keep)
 
+                # Compress outgoing KV cache before handing to next agent
+                if self.kv_pipeline is not None:
+                    past_kv = self.kv_pipeline.compress(past_kv)
+
                 for idx in range(batch_size):
                     mask = wrapped_mask[idx].bool()
                     trimmed_ids = wrapped_ids[idx][mask].to("cpu").tolist()
@@ -154,6 +165,10 @@ class LatentMASMethod:
                         }
                     )
             else:
+
+                # Decompress before judger's text generation
+                if self.kv_pipeline is not None:
+                    past_kv = self.kv_pipeline.decompress(past_kv)
 
                 past_for_decoding = past_kv if self.latent_steps > 0 else None
 
@@ -276,12 +291,16 @@ class LatentMASMethod:
             )
 
             if agent.role != "judger":
+                # Decompress first so _past_length works on a plain tuple
+                if self.kv_pipeline is not None:
+                    past_kv = self.kv_pipeline.decompress(past_kv)
+
                 prev_past_len = _past_length(past_kv)
 
                 # to wrap all latent thoughts from previous agents
                 if self.args.think:
                         wrapped_prompts = [f"{prompt}<think>" for prompt in prompts]
-                else: 
+                else:
                     wrapped_prompts = prompts
 
                 wrapped_encoded = self.model.tokenizer(
@@ -308,6 +327,10 @@ class LatentMASMethod:
                     tokens_added = new_past_len - prev_past_len
                     tokens_to_keep = self.latent_steps if self.latent_only else tokens_added
                     past_kv = self._truncate_past(past_kv, tokens_to_keep)
+
+                # Compress outgoing KV cache before handing to next agent
+                if self.kv_pipeline is not None:
+                    past_kv = self.kv_pipeline.compress(past_kv)
 
                 if self.latent_only:
                     if self.latent_steps > 0:

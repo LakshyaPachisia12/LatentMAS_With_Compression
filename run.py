@@ -108,6 +108,29 @@ def main():
     parser.add_argument("--latent_space_realign", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
 
+    # LAKV compression (new — does not affect original LatentMAS when omitted)
+    parser.add_argument(
+        "--compression_mode",
+        choices=["none", "uniform_int8", "adaptive"],
+        default="none",
+        help=(
+            "KV-cache compression between agents. "
+            "'none' = original LatentMAS behaviour (default). "
+            "'uniform_int8' = all layers quantized to INT8. "
+            "'adaptive' = full LAKV (INT8/INT4/DROP per calibration profile)."
+        ),
+    )
+    parser.add_argument(
+        "--calibration_file",
+        type=str,
+        default=None,
+        help=(
+            "Path to a layer_profile JSON produced by compression/calibrate.py. "
+            "Required when --compression_mode adaptive. "
+            "If omitted, a heuristic uniform profile is used as fallback."
+        ),
+    )
+
     # vLLM support
     parser.add_argument("--use_vllm", action="store_true", help="Use vLLM backend for generation")
     parser.add_argument("--enable_prefix_caching", action="store_true", help="Enable prefix caching in vLLM for latent_mas")
@@ -125,7 +148,31 @@ def main():
     set_seed(args.seed)
     device = auto_device(args.device)
     model = ModelWrapper(args.model_name, device, use_vllm=args.use_vllm, args=args)
-    
+
+    # Build LAKV compression pipeline (no-op when compression_mode == "none")
+    kv_pipeline = None
+    if args.compression_mode != "none":
+        from compression.pipeline import KVCompressionPipeline
+        if args.calibration_file:
+            kv_pipeline = KVCompressionPipeline.from_profile(
+                args.calibration_file, compression_mode=args.compression_mode
+            )
+            print(f"[LAKV] Loaded calibration profile from {args.calibration_file}")
+        else:
+            # Fallback: derive num_layers from loaded model config
+            try:
+                num_layers = model.model.config.num_hidden_layers
+            except AttributeError:
+                try:
+                    num_layers = model.HF_model.config.num_hidden_layers
+                except AttributeError:
+                    num_layers = 28  # safe default
+            kv_pipeline = KVCompressionPipeline.make_uniform_profile(
+                num_layers, compression_mode=args.compression_mode
+            )
+            print(f"[LAKV] No calibration file — using heuristic profile ({num_layers} layers, mode={args.compression_mode})")
+    args.kv_pipeline = kv_pipeline  # pass through to LatentMASMethod via args
+
     start_time = time.time()
 
     common_kwargs = dict(
@@ -236,9 +283,10 @@ def main():
                 "split": args.split,
                 "seed": args.seed,
                 "max_samples": args.max_samples,
+                "compression_mode": args.compression_mode,
                 "accuracy": acc,
                 "correct": correct,
-                "total_time_sec": round(total_time,4),
+                "total_time_sec": round(total_time, 4),
                 "time_per_sample_sec": round(total_time / args.max_samples, 4),
             },
             ensure_ascii=False,
