@@ -189,22 +189,22 @@ python run.py --method latent_mas --model_name Qwen/Qwen3-8B --task gsm8k \
 
 ## Available tasks
 
-| Flag | Dataset |
-|------|---------|
-| `gsm8k` | GSM8K math word problems |
-| `aime2024` | AIME 2024 competition problems |
-| `aime2025` | AIME 2025 competition problems |
-| `gpqa` | GPQA-Diamond science questions |
-| `arc_easy` | ARC Easy |
-| `arc_challenge` | ARC Challenge |
-| `mbppplus` | MBPP+ code generation |
-| `humanevalplus` | HumanEval+ code generation |
-| `medqa` | MedQA medical reasoning |
+| Flag            | Dataset                        |
+| --------------- | ------------------------------ |
+| `gsm8k`         | GSM8K math word problems       |
+| `aime2024`      | AIME 2024 competition problems |
+| `aime2025`      | AIME 2025 competition problems |
+| `gpqa`          | GPQA-Diamond science questions |
+| `arc_easy`      | ARC Easy                       |
+| `arc_challenge` | ARC Challenge                  |
+| `mbppplus`      | MBPP+ code generation          |
+| `humanevalplus` | HumanEval+ code generation     |
+| `medqa`         | MedQA medical reasoning        |
 
 ## Available models
 
-| Flag value | Size |
-|------------|------|
-| `Qwen/Qwen3-4B` | 4B |
-| `Qwen/Qwen3-8B` | 8B |
-| `Qwen/Qwen3-14B` | 14B |
+| Flag value       | Size |
+| ---------------- | ---- |
+| `Qwen/Qwen3-4B`  | 4B   |
+| `Qwen/Qwen3-8B`  | 8B   |
+| `Qwen/Qwen3-14B` | 14B  |
